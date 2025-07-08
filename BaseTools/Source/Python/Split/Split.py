@@ -159,6 +159,7 @@ def splitFile(inputfile, position, outputdir=None, outputfile1=None, outputfile2
             with open(outputfile2, "wb") as fout:
                 fout.write(b'')
         else:
+            tempdir = None
             try:
                 tempdir = tempfile.mkdtemp()
                 tempfile1 = os.path.join(tempdir, "file1.bin")
@@ -177,7 +178,7 @@ def splitFile(inputfile, position, outputdir=None, outputfile1=None, outputfile2
                 logger.error("Split file failed")
                 raise(e)
             finally:
-                if os.path.exists(tempdir):
+                if tempdir and os.path.exists(tempdir):
                     shutil.rmtree(tempdir)
 
 
