@@ -1,0 +1,72 @@
+name: EDK2 Build and Test CI (Windows)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  edk2-windows-build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: 🔧 Install Python Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install flake8 pytest
+
+    - name: 🧹 Lint with flake8
+      run: |
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+    - name: 🧪 Run Python Tests
+      run: |
+        pytest
+
+    - name: 🔨 Build BaseTools
+      run: |
+        Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+        cd BaseTools
+        nmake -f Makefile
+
+    - name: 🏗️ Run build.py (EDK2 firmware build)
+      run: |
+        # Set environment vars for the EDK2 build
+        $env:WORKSPACE = "${{ github.workspace }}"
+        $env:EDK_TOOLS_PATH = "$env:WORKSPACE\BaseTools"
+
+        # Optional: You may need to run edksetup.bat first
+        .\edksetup.bat Rebuild
+
+        # Then invoke build.py or platform build directly
+        python build.py
+
+    - name: 🧰 Upload Build Artifacts
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: UEFI-Build-Output
+        path: Build/
+
+    - name: 📦 Upload Test Results (optional)
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: ./tests/**/*.xml
